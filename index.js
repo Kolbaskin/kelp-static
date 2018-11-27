@@ -10,13 +10,24 @@ const mime = require('mime2');
  */
 module.exports = function(root, options){
   var defaults = {
-    index: 'index.html'
+    index: 'index.html',
+    sharedModelsPath: [
+      /[\/\\]{1}model[\/\\]{1}[a-z0-9]{1,}\.js$/i
+    ]
   };
   options = options || {};
   for(var k in options)
     defaults[ k ] = options[ k ];
   options = defaults;
   root = path.resolve(root);
+
+  var checkFileName = function(fileName) {
+    for(var i=0;i<defaults.sharedModelsPath.length;i++) {
+      if(defaults.sharedModelsPath[i].test(fileName)) return true;
+    }
+    return false;
+  }
+
   /**
    * [function description]
    * @param  {[type]}   req  [description]
@@ -46,16 +57,82 @@ module.exports = function(root, options){
         res.writeHead(304);
         return res.end();
       }
-      res.statusCode = 200;
       var type = mime.lookup(filename);
       var charset = /^text\/|^application\/(javascript|json)/.test(type) ? 'UTF-8' : false;
       res.setHeader('Last-Modified', mtime);
       res.setHeader('Content-Length', stat.size);
       res.setHeader('Content-Type', type + (charset ? '; charset=' + charset : ''));
-      fs.createReadStream(filename).pipe(res);
+
+      if(checkFileName(filename)) {    
+        prepareModelFile(filename, (content) => {         
+          res.send(content);
+        })
+      } else
+        fs.createReadStream(filename).pipe(res);
     });
   };
 };
+
+function prepareModelFile(fileName, cb) {  
+  fs.readFile(fileName, 'utf-8', function(e, s) {
+      var c, j, l, i = 0, out = '', sharedName, comma, startSpaceLog;
+      s = s.toString();      
+      while(i<s.length) {
+          if(s.substr(i, 15) == '// scope:server') {
+              j = out.length-1;
+              while(j>=0 && out.charAt(j) != '\n') j--;
+              if(j>=0) out = out.substr(0,j+1)
+              else out = '';
+              i+=15
+          } else 
+          if(s.substr(i, 18) == '/* scope:server */') {
+              i+=18;
+              sharedName = '';
+              comma = '';
+              startSpaceLog = true;
+              while(i<s.length && (c = s.charAt(i)) !='{') {
+                if(c == ',' && startSpaceLog) {
+                  comma = 'start';
+                } else
+                if(c == '$' && !sharedName) {
+                  startSpaceLog = false;
+                  while(true) {
+                    sharedName += c;
+                    i++;
+                    if(!/[a-z0-9_]/i.test(c = s.charAt(i)))
+                      break;
+                  }
+                }
+                i++;
+              }
+              l = 1;
+              i++;
+              while(i<s.length) {
+                  c = s.charAt(i)
+                  if(c =='{') l++;
+                  else
+                  if(c =='}') {
+                      l--;
+                      if(!l) break;
+                  }
+                  else
+                  if(c == '\n')
+                      out += '\n'
+                  i++;
+              }
+              i++;
+              if(sharedName) {
+                if(comma == 'start') out += ',';
+                out += 'async ' + sharedName + '() {return await this.__runSharedFunction(arguments)}';
+                if(comma != 'start') out += ',';
+              }
+          } else
+              out += s.charAt(i++)
+      }
+      
+      cb(out)
+  })    
+}
 /**
  * [renderDirectory description]
  * @param  {[type]}   dir      [description]
