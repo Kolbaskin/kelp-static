@@ -1,19 +1,19 @@
 {
-  "name": "kelp-static",
-  "version": "1.2.9",
-  "description": "serve static files for kelp",
+  "name": "express-static",
+  "version": "1.2.6",
+  "description": "serve static files for express",
   "main": "index.js",
   "scripts": {
     "test": "node test/test.js"
   },
   "bin": {
-    "kelp-static": "bin/server.js"
+    "express-static": "bin/server.js"
   },
   "author": "lsong",
   "license": "MIT",
   "keywords": [
-    "kelp",
-    "static"
+    "express",
+    "express-static"
   ],
   "repository": {
     "type": "git",
@@ -22,10 +22,9 @@
   "bugs": {
     "url": "https://github.com/song940/kelp-static/issues"
   },
-  "homepage": "https://github.com/song940/kelp-static#readme",
+  "homepage": "https://github.com/song940/kelp-static/tree/express",
   "devDependencies": {
-    "kelp": "*",
-    "kelp-logger": "*"
+    "express": "*"
   },
   "dependencies": {
     "mime2": "latest"
